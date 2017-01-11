@@ -22,24 +22,61 @@ chain:
     parameters:
       resource_ids: "{{createvpc.result[0]['id']}}"
       tags: "Name={{name}}"
-    on-success: "create_subnets-1"
+    on-success: "create_subnets_1"
     on-failure: "vpc_error"
   -
-    name: "create_subnets-1"
+    name: "create_subnets_1"
     ref: "aws.vpc_create_subnet"
     parameters:
       vpc_id: "{{createvpc.result[0]['id']}}"
       cidr_block: "10.0.1.0/24"
       availability_zone: "us-east-2a"
     on-failure: "vpc_error"
-    on-success: "create_subnets-2"
+    on-success: "create_subnets_2"
   -
-    name: "create_subnets-2"
+    name: "create_subnets_2"
     ref: "aws.vpc_create_subnet"
     parameters:
       vpc_id: "{{createvpc.result[0]['id']}}"
       cidr_block: "10.0.2.0/24"
       availability_zone: "us-east-2b"
+    on-failure: "vpc_error"
+    on-success: "create_igw"
+  -
+    name: "create_igw"
+    ref: "aws.vpc_create_internet_gateway"
+    on-failure: "vpc_error"
+    on-success: "attach_igw"
+  -
+    name: "attach_igw"
+    ref: "aws.vpc_attach_internet_gateway"
+    parameters:
+      vpc_id: "{{createvpc.result[0]['id']}}"
+      internet_gateway_id: "{{create_igw.result[0]['id']}}"
+    on-failure: "vpc_error"
+    on-success: "create_route_table"
+  -
+    name: "create_route_table"
+    ref: "aws.vpc_create_route_table"
+    parameters:
+      vpc_id: "{{createvpc.result[0]['id']}}"
+    on-failure: "vpc_error"
+    on-success: "associate_route_table"
+  -
+    name: "associate_route_table"
+    ref: "aws.vpc_associate_route_table"
+    parameters:
+      route_table_id: "{{create_route_table.result[0]['id']}}"
+      subnet_id: "{{create_subnets_1.result[0]['id']}}"
+    on-failure: "vpc_error"
+    on-success: "create_route"
+  -
+    name: "create_route"
+    ref: "aws.vpc_create_route"
+    parameters:
+      route_table_id: "{{create_route_table.result[0]['id']}}"
+      destination_cidr_block: "0.0.0.0/0"  
+      gateway_id: "{{create_igw.result[0]['id']}}"
     on-failure: "vpc_error"
   -
     name: "vpc_error"
