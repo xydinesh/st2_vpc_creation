@@ -1,0 +1,17 @@
+---
+chain:
+  -
+    name: "getsubnets"
+    ref: "aws.vpc_create_vpc"
+    parameters:
+      cidr_block: "{{cidr_block}}"
+      instance_tenancy: "{{instance_tenancy}}"
+      dry_run: "{{dry_run}}"
+    on-failure: "vpc_error"
+    on-success: "wait_for_vpc"
+  -
+    name: "vpc_error"
+    ref: "core.local"
+    parameters:
+      cmd: "echo vpc creation workflow failed"
+default: "getsubnets"

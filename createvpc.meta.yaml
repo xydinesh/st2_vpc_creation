@@ -1,0 +1,23 @@
+name: "createvpc"
+description: "Create AWS VPC using st2"
+runner_type: "action-chain"
+entry_point: "workflows/createvpc.yaml"
+enabled: true
+parameters:
+  cidr_block:
+    type: "string"
+    description: "CIDR block for use in the VPC"
+    required: true
+  name:
+    type: "string"
+    description: "Name of the VPC"
+    required: true
+  instance_tenancy:
+    type: "string"
+    description: "Tenancy options for instances launched into the VPC"
+    default: "default"
+  dry_run:
+    type: "boolean"
+    description: "Do a dry run before applying changes"
+    default: false
+

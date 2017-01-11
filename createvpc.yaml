@@ -1,0 +1,49 @@
+---
+chain:
+  -
+    name: "createvpc"
+    ref: "aws.vpc_create_vpc"
+    parameters:
+      cidr_block: "{{cidr_block}}"
+      instance_tenancy: "{{instance_tenancy}}"
+      dry_run: "{{dry_run}}"
+    on-failure: "vpc_error"
+    on-success: "wait_for_vpc"
+  -
+    name: "wait_for_vpc"
+    ref: "core.local"
+    parameters:
+      cmd: "echo {{createvpc.result[0]['id']}}"
+    on-failure: "vpc_error"
+    on-success: "create_vpc_tags"
+  -
+    name: "create_vpc_tags"
+    ref: "aws.vpc_create_tags"
+    parameters:
+      resource_ids: "{{createvpc.result[0]['id']}}"
+      tags: "Name={{name}}"
+    on-success: "create_subnets-1"
+    on-failure: "vpc_error"
+  -
+    name: "create_subnets-1"
+    ref: "aws.vpc_create_subnet"
+    parameters:
+      vpc_id: "{{createvpc.result[0]['id']}}"
+      cidr_block: "10.0.1.0/24"
+      availability_zone: "us-east-2a"
+    on-failure: "vpc_error"
+    on-success: "create_subnets-2"
+  -
+    name: "create_subnets-2"
+    ref: "aws.vpc_create_subnet"
+    parameters:
+      vpc_id: "{{createvpc.result[0]['id']}}"
+      cidr_block: "10.0.2.0/24"
+      availability_zone: "us-east-2b"
+    on-failure: "vpc_error"
+  -
+    name: "vpc_error"
+    ref: "core.local"
+    parameters:
+      cmd: "echo vpc creation workflow failed"
+default: "createvpc"

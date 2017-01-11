@@ -1,0 +1,15 @@
+name: "destroyvpc"
+description: "Delete AWS VPC using st2"
+runner_type: "action-chain"
+entry_point: "workflows/destoryvpc.yaml"
+enabled: true
+parameters:
+  vpc_id:
+    type: "string"
+    description: "VPC ID to delete"
+    required: true
+  dry_run:
+    type: "boolean"
+    description: "Do a dry run before applying changes"
+    default: false
+
