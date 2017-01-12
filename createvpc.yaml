@@ -1,86 +1,120 @@
----
-chain:
-  -
-    name: "createvpc"
-    ref: "aws.vpc_create_vpc"
-    parameters:
-      cidr_block: "{{cidr_block}}"
-      instance_tenancy: "{{instance_tenancy}}"
-      dry_run: "{{dry_run}}"
-    on-failure: "vpc_error"
-    on-success: "wait_for_vpc"
-  -
-    name: "wait_for_vpc"
-    ref: "core.local"
-    parameters:
-      cmd: "echo {{createvpc.result[0]['id']}}"
-    on-failure: "vpc_error"
-    on-success: "create_vpc_tags"
-  -
-    name: "create_vpc_tags"
-    ref: "aws.vpc_create_tags"
-    parameters:
-      resource_ids: "{{createvpc.result[0]['id']}}"
-      tags: "Name={{name}}"
-    on-success: "create_subnets_1"
-    on-failure: "vpc_error"
-  -
-    name: "create_subnets_1"
-    ref: "aws.vpc_create_subnet"
-    parameters:
-      vpc_id: "{{createvpc.result[0]['id']}}"
-      cidr_block: "10.0.1.0/24"
-      availability_zone: "us-east-2a"
-    on-failure: "vpc_error"
-    on-success: "create_subnets_2"
-  -
-    name: "create_subnets_2"
-    ref: "aws.vpc_create_subnet"
-    parameters:
-      vpc_id: "{{createvpc.result[0]['id']}}"
-      cidr_block: "10.0.2.0/24"
-      availability_zone: "us-east-2b"
-    on-failure: "vpc_error"
-    on-success: "create_igw"
-  -
-    name: "create_igw"
-    ref: "aws.vpc_create_internet_gateway"
-    on-failure: "vpc_error"
-    on-success: "attach_igw"
-  -
-    name: "attach_igw"
-    ref: "aws.vpc_attach_internet_gateway"
-    parameters:
-      vpc_id: "{{createvpc.result[0]['id']}}"
-      internet_gateway_id: "{{create_igw.result[0]['id']}}"
-    on-failure: "vpc_error"
-    on-success: "create_route_table"
-  -
-    name: "create_route_table"
-    ref: "aws.vpc_create_route_table"
-    parameters:
-      vpc_id: "{{createvpc.result[0]['id']}}"
-    on-failure: "vpc_error"
-    on-success: "associate_route_table"
-  -
-    name: "associate_route_table"
-    ref: "aws.vpc_associate_route_table"
-    parameters:
-      route_table_id: "{{create_route_table.result[0]['id']}}"
-      subnet_id: "{{create_subnets_1.result[0]['id']}}"
-    on-failure: "vpc_error"
-    on-success: "create_route"
-  -
-    name: "create_route"
-    ref: "aws.vpc_create_route"
-    parameters:
-      route_table_id: "{{create_route_table.result[0]['id']}}"
-      destination_cidr_block: "0.0.0.0/0"  
-      gateway_id: "{{create_igw.result[0]['id']}}"
-    on-failure: "vpc_error"
-  -
-    name: "vpc_error"
-    ref: "core.local"
-    parameters:
-      cmd: "echo vpc creation workflow failed"
-default: "createvpc"
+version: '2.0'
+
+name: default.createvpc
+description: A workflow to create a vpc with subnets, routes and igw
+workflows:
+  main:
+    input:
+      - cidr_block
+      - name
+      - dry_run
+      - instance_tenancy
+
+    output:
+      vpc_id: <% $.vpc_id %>
+
+    tasks:
+      create_vpc:
+        action: aws.vpc_create_vpc
+        input:
+          cidr_block: <% $.cidr_block %>
+          instance_tenancy: <% $.instance_tenancy %>
+          dry_run: <% $.dry_run %>
+        publish:
+          vpc_id: <% task(create_vpc).result.result[0]['id'] %>
+        on-error:
+          - notify
+          - fail
+        on-success:
+          - create_vpc_tags
+      create_vpc_tags:
+        action: aws.vpc_create_tags
+        input:
+          resource_ids: <% $.vpc_id %>
+          tags: "Name=<% $.name %>"
+        on-error:
+          - notify
+          - fail
+        on-success:
+          - create_subnet_1
+      create_subnet_1:
+        action: aws.vpc_create_subnet
+        input:
+          vpc_id: <% $.vpc_id %>
+          cidr_block: 10.0.1.0/24
+          availability_zone: "us-east-2a"
+        publish:
+          subnet_1_id: <% task(create_subnet_1).result.result[0]['id'] %>
+        on-error:
+          - notify
+          - fail
+        on-success:
+          - create_subnet_2
+      create_subnet_2:
+        action: aws.vpc_create_subnet
+        input:
+          vpc_id: <% $.vpc_id %>
+          cidr_block: 10.0.2.0/24
+          availability_zone: "us-east-2b"
+        publish:
+          subnet_2_id: <% task(create_subnet_2).result.result[0]['id'] %>
+        on-error:
+          - notify
+          - fail
+        on-success:
+          - create_igw
+      create_igw:
+        action: aws.vpc_create_internet_gateway
+        publish:
+          igw_id: <% task(create_igw).result.result[0]['id'] %>
+        on-error:
+          - notify
+          - fail
+        on-success:
+          - attach_igw
+      attach_igw:
+        action: aws.vpc_attach_internet_gateway
+        input:
+          vpc_id: <% $.vpc_id %>
+          internet_gateway_id: <% $.igw_id %>
+        on-error:
+          - notify
+          - fail
+        on-success:
+          - create_route_table
+      create_route_table:
+        action: aws.vpc_create_route_table
+        input:
+          vpc_id: <% $.vpc_id %>
+        publish:
+          route_table_id: <% task(create_route_table).result.result[0]['id'] %>
+        on-error:
+          - notify
+          - fail
+        on-success:
+          - associate_route_table
+      associate_route_table:
+        action: aws.vpc_associate_route_table
+        input:
+          route_table_id: <% $.route_table_id %>
+          subnet_id: <% $.subnet_1_id %>
+        on-error:
+          - notify
+          - fail
+        on-success:
+          - create_route
+      create_route:
+        action: aws.vpc_create_route
+        input:
+          route_table_id: <% $.route_table_id %>
+          destination_cidr_block: 0.0.0.0/0
+          gateway_id: <% $.igw_id %>
+        on-error:
+          - notify
+          - fail
+        on-success:
+          - notify
+      notify:
+        action: core.local
+        input:
+          cmd: printf "created vpc <% $.vpc_id %>" 

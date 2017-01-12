@@ -1,8 +1,10 @@
-name: "createvpc"
-description: "Create AWS VPC using st2"
-runner_type: "action-chain"
-entry_point: "workflows/createvpc.yaml"
-enabled: true
+---
+name: createvpc
+description: Create AWS VPC using Mistral
+runner_type: mistral-v2
+entry_point: workflows/createvpc.yaml
+enabled: True
+pack: default
 parameters:
   cidr_block:
     type: "string"
@@ -20,4 +22,8 @@ parameters:
     type: "boolean"
     description: "Do a dry run before applying changes"
     default: false
+  workflow:
+    type: "string"
+    default: default.createvpc.main
+    immutable: true
 

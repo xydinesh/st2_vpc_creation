@@ -1,0 +1,18 @@
+---
+version: '2.0'
+
+default.mistral-basic:
+  description: A basic workflow that runs arbitary linux command
+  type: direct
+  input:
+    - cmd
+  output:
+    stdout: <% $.stdout %>
+  tasks:
+    get_hostname:
+      action: core.local
+      input:
+        cmd: "hostname"
+      publish:
+        hostname: <% task(get_hostname).result.stdout %>
+  
