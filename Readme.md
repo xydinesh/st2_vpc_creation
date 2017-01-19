@@ -1,5 +1,11 @@
 # VPC-Workflow
 
+# Authenticate
+
+Before using CLI export authentication token as follows
+
+`export ST2_AUTH_TOKEN=$(st2 auth st2admin -p <password> -t)`
+
 # Installation
 
 `st2 action create createvpc.meta.yaml`
